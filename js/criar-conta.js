@@ -21,11 +21,25 @@ let emailCadastro = '';
 
 inicializar();
 
-function inicializar() {
+async function inicializar() {
   formPassoEmail?.addEventListener('submit', tratarSubmitEmail);
   formPassoCodigo?.addEventListener('submit', tratarSubmitCodigo);
   formPassoSenha?.addEventListener('submit', tratarSubmitSenha);
   document.querySelector('[data-acao="reenviar-codigo"]')?.addEventListener('click', reenviarCodigo);
+
+  // Se a pessoa chegou aqui clicando no link de confirmação do e-mail, o SDK
+  // já capturou a sessão a partir do hash da URL (detectSessionInUrl: true no
+  // supabaseClient). Isso significa que o e-mail já foi confirmado — não é
+  // preciso pedir e-mail/código de novo, só falta definir a senha.
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    if (data.session) {
+      exibirMensagem('E-mail confirmado. Defina sua senha para concluir o cadastro.', 'sucesso');
+      avancarPara(formPassoSenha);
+    }
+  } catch (erro) {
+    console.error('Falha ao verificar sessão existente:', erro);
+  }
 }
 
 async function tratarSubmitEmail(evento) {
@@ -44,11 +58,13 @@ async function tratarSubmitEmail(evento) {
   try {
     botaoEnviar.disabled = true;
 
+    const redirectTo = new URL('criar-conta.html', window.location.href).toString();
     const { error } = await supabaseClient.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
         data: { nome },
+        emailRedirectTo: redirectTo,
       },
     });
 
@@ -139,9 +155,10 @@ async function reenviarCodigo() {
   if (!emailCadastro) return;
 
   try {
+    const redirectTo = new URL('criar-conta.html', window.location.href).toString();
     const { error } = await supabaseClient.auth.signInWithOtp({
       email: emailCadastro,
-      options: { shouldCreateUser: true },
+      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
     });
 
     if (error) throw error;
