@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar — Controle de Compras Disktrans</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.4/dist/umd/supabase.js"
+    integrity="sha384-rqOdr5xucl4VNvjCtZO01Sdq0MqFsLBP2XT5dbe9hwm5032CwN/S+iTtUwzJe7OB"
+    crossorigin="anonymous"
+    defer></script>
+</head>
+<body class="pagina">
+  <main class="login">
+    <div class="login__cartao">
+      <svg class="login__logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 350" role="img" aria-label="Disktrans">
+        <defs><style>.dk1{fill:#024c95;fill-rule:evenodd}.dk2{fill:#f4941d;fill-rule:evenodd}</style></defs>
+        <path class="dk2" d="M703.89,127.44l-19.4,91.5h-.34l-36.69-91.5h-18.72l-15,70.58-11.35-70.58h-16.01l-52.02,90.32-24.06-30.25h9.74l14.66-1.02c16.35-2.03,18.47-16.18,21.52-30.25,4.83-22.79-3.39-28.81-24.99-28.81h-48.63l-21.44,100.14h11.35l19.23-90.15h37.45c17.88,0,18.64,4.83,15.93,17.62-3.56,16.52-6.86,21.94-24.4,22.45h-31.18l39.14,50.07h11.86l52.11-90.82,14.06,90.82h12.12l19.32-90.82h.25l37.02,90.82h18.55l21.27-100.14h-11.35Z"/>
+        <path class="dk2" d="M788.28,154.72c7.03-27.2-8.39-28.13-29.99-28.13-24.65,0-37.45,2.37-43.12,29.06-5.59,26.52,11.86,24.06,31.26,25.67,18.05,1.52,27.28-1.69,23.21,17.37-4.24,19.74-10.08,19.74-31.43,19.74s-25.59,0-20.59-22.11h-11.35c-8.3,29.06,4.24,32.11,29.74,32.11s38.89-.93,44.9-29.31c5.76-27.11-6.44-26.43-29.91-27.79-18.64-.51-28.04,1.1-23.98-18.05,2.97-13.89,6.61-16.69,28.81-16.69s24.32.68,21.1,18.13h11.35Z"/>
+        <path class="dk2" d="M400.33,127.44l-8.47,10h38.8l-19.15,90.15h11.35l19.15-90.15h33.3l2.29-10h-77.27Z"/>
+        <path class="dk1" d="M777.27,240.21h-394.31l-34.31-64.05,46.43-49.82h-32.79l-31.18,34.74,15.17-74.47-165.38,28.21h131.07l-22.2,113.19h27.11l7.79-36.52,37.87,76.93,414.73-28.21Z"/>
+        <path class="dk2" d="M233.08,239.79H21.86l-.59,1.61h53.21l-.42,1.69h76l-.85,3.3h69.47l-1.02,4.24h84.89v-10.85h-69.47Z"/>
+        <path class="dk2" d="M71.34,256.65h76l-.85,3.3h69.47l-1.02,4.24h63.37v-10.84H19.15l-.59,1.61h53.21l-.42,1.69Z"/>
+        <path class="dk2" d="M68.21,270.2h75.91l-.85,3.3h69.56l-1.1,4.24h61.85v-10.84H16.02l-.59,1.69h53.21l-.42,1.61Z"/>
+        <path class="dk2" d="M65.49,283.76h75.91l-.85,3.3h69.56l-1.1,4.32h64.39v-10.84H13.3l-.59,1.61h53.21l-.42,1.61Z"/>
+        <path class="dk2" d="M209.02,294.1H10.59l-.59,1.61h53.21l-.42,1.69h75.91l-.85,3.3h69.56l-1.1,4.24h84.98v-10.84h-82.27Z"/>
+        <path class="dk1" d="M290.35,304.94c17.96,0,35.16-14.57,38.38-32.62,3.13-17.96-8.9-32.53-26.86-32.53s-35.16,14.57-38.38,32.53c-3.13,18.05,8.9,32.62,26.86,32.62Z"/>
+        <path class="dk2" d="M292.64,291.89c10.84,0,21.1-8.73,23.05-19.57,1.86-10.76-5.34-19.49-16.1-19.49s-21.1,8.73-23.04,19.49c-1.86,10.84,5.34,19.57,16.1,19.57Z"/>
+        <path class="dk1" d="M197.58,103.55c18.05,0,35.16-14.57,38.38-32.62,3.13-17.96-8.9-32.53-26.86-32.53s-35.16,14.57-38.38,32.53c-3.13,18.05,8.9,32.62,26.86,32.62Z"/>
+        <path class="dk2" d="M199.87,90.5c10.84,0,21.1-8.73,23.04-19.57,1.86-10.76-5.34-19.49-16.1-19.49s-21.1,8.73-23.04,19.49c-1.86,10.84,5.34,19.57,16.1,19.57Z"/>
+        <path class="dk1" d="M178.35,126.34l-21.6,101.67h27.11l21.6-101.67h-27.11Z"/>
+        <path class="dk1" d="M255.53,166.33l-11.1-.85c-7.03-.51-10.93-.85-9.15-9.07,1.19-5.76,3.05-8.81,17.71-8.81,10.76,0,15.08,0,12.88,10.51h26.01l.85-4.24c6.02-28.04-12.88-28.38-35.08-28.38-26.52,0-43.29,1.86-49.48,30.92-6.27,29.31,8.47,29.15,33.13,30.92l5.85.42c12.54.85,14.06.68,12.2,9.57-1.86,8.64-6.27,9.49-18.98,9.49-13.39,0-16.94-1.1-14.66-11.78h-26.01c-7.03,33.38,10,33.89,35.92,33.89,44.82,0,47.62-16.44,51.17-33.38,5-23.3-1.69-27.11-31.26-29.23Z"/>
+        <path class="dk1" d="M164.37,145.07c8.22-38.46-5.59-52.61-43.38-52.61H52.45l-7.03,31.43h68.03c12.62,0,17.45,3.64,13.73,21.18l-6.1,28.38c-3.05,14.32-9.74,23.21-23.13,23.21H30l-6.35,31.35h73.46c37.7,0,53.38-17.45,61.26-54.56l6.02-28.38Z"/>
+      </svg>
+
+      <h1>Controle de Compras — T.I.</h1>
+
+      <p id="mensagem-status" class="alerta alerta--erro" role="alert" hidden></p>
+
+      <form id="form-login" class="formulario" novalidate data-form="login">
+        <div class="formulario__campo">
+          <label for="login-email">E-mail</label>
+          <input
+            type="email"
+            id="login-email"
+            name="email"
+            autocomplete="username"
+            required>
+        </div>
+
+        <div class="formulario__campo">
+          <label for="login-senha">Senha</label>
+          <input
+            type="password"
+            id="login-senha"
+            name="senha"
+            autocomplete="current-password"
+            required>
+        </div>
+
+        <div class="formulario__acoes">
+          <button type="submit" class="botao">Entrar</button>
+        </div>
+
+        <p class="formulario__rodape">
+          <button type="button" class="botao--link" data-acao="mostrar-recuperar">Esqueci minha senha</button>
+        </p>
+        <p class="formulario__rodape">
+          <a href="criar-conta.html">Ainda não tem conta? Cadastre-se</a>
+        </p>
+      </form>
+
+      <form id="form-recuperar" class="formulario" novalidate hidden data-form="recuperar-senha">
+        <p class="u-texto-secundario">Informe seu e-mail cadastrado. Enviaremos um link para redefinir sua senha.</p>
+
+        <div class="formulario__campo">
+          <label for="recuperar-email">E-mail</label>
+          <input
+            type="email"
+            id="recuperar-email"
+            name="email"
+            autocomplete="username"
+            required>
+        </div>
+
+        <div class="formulario__acoes">
+          <button type="submit" class="botao">Enviar link de recuperação</button>
+        </div>
+
+        <p class="formulario__rodape">
+          <button type="button" class="botao--link" data-acao="voltar-login">Voltar para o login</button>
+        </p>
+      </form>
+
+      <p class="formulario__rodape u-mt-4">
+        <a href="privacidade.html">Aviso de privacidade</a>
+      </p>
+    </div>
+  </main>
+
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

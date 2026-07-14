@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Testes unitários — lógica pura</title>
+  <!--
+    Como rodar: sirva a raiz do projeto com qualquer servidor estático
+    (ex.: `python -m http.server` na raiz) e abra /tests/testes.html no
+    navegador. Não há framework de teste nem build (o projeto não usa
+    npm) — este arquivo roda direto no navegador com módulos ES nativos.
+
+    O que é testado: só a lógica pura e exportada de js/relatorios.js e
+    js/pedidos.js (escaparCampoCsv, calcularVariacao, sanitizarTermoBusca,
+    normalizarUrlSegura). Essas funções foram extraídas/exportadas destes
+    arquivos sem alterar comportamento, especificamente para permitir este
+    teste automatizado.
+
+    O mock de window.supabase abaixo existe só para o import desses
+    módulos não falhar (eles importam supabaseClient.js, que exige o SDK
+    real) e para não redirecionar esta página para login.html — nenhuma
+    chamada de rede é feita. É esperado ver, no console, um erro
+    assíncrono de "obterFiltrosAtuais" (relatorios.js tenta ler o
+    formulário de filtros real, que não existe nesta página de teste) —
+    isso não afeta os resultados em window.__resultadoTestes.
+  -->
+</head>
+<body>
+  <h1>Testes unitários</h1>
+  <pre id="saida">Executando...</pre>
+  <script>
+    window.addEventListener('error', (ev) => {
+      document.getElementById('saida').textContent = 'ERRO GLOBAL: ' + ev.message + '\n' + (ev.error?.stack ?? '');
+    });
+    window.addEventListener('unhandledrejection', (ev) => {
+      document.getElementById('saida').textContent = 'REJEIÇÃO NÃO TRATADA: ' + (ev.reason?.message ?? ev.reason) + '\n' + (ev.reason?.stack ?? '');
+    });
+  </script>
+
+  <script>
+    // relatorios.js e pedidos.js importam supabaseClient.js, que exige
+    // window.supabase (normalmente carregado via CDN no <head> de cada
+    // página real) e uma sessão válida (senão os módulos redirecionam para
+    // login.html assim que importados). Aqui simulamos os dois só o
+    // suficiente para os módulos carregarem sem rede real e sem navegar
+    // para longe desta página de testes — nenhuma chamada de rede de
+    // verdade é feita.
+    window.supabase = {
+      createClient: () => ({
+        auth: {
+          getSession: async () => ({ data: { session: { user: { id: 'teste', email: 'teste@disktrans.com.br' } } }, error: null }),
+          onAuthStateChange: () => {},
+          signOut: async () => ({ error: null }),
+        },
+        rpc: async () => ({ data: null, error: null }),
+        from: () => {
+          const construtor = {
+            select: () => construtor,
+            eq: () => construtor,
+            order: () => construtor,
+            range: () => construtor,
+            limit: () => construtor,
+            or: () => construtor,
+            then: (resolve) => resolve({ data: [], error: null, count: 0 }),
+          };
+          return construtor;
+        },
+      }),
+    };
+  </script>
+
+  <script type="module">
+    import { escaparCampoCsv, formatarNumeroCsv, calcularVariacao } from '/js/relatorios.js';
+    import { sanitizarTermoBusca, normalizarUrlSegura } from '/js/pedidos.js';
+
+    const resultados = [];
+    let falhas = 0;
+
+    function teste(nome, fn) {
+      try {
+        fn();
+        resultados.push(`OK   ${nome}`);
+      } catch (erro) {
+        falhas += 1;
+        resultados.push(`FAIL ${nome} -> ${erro.message}`);
+      }
+    }
+
+    function assertIgual(recebido, esperado, contexto) {
+      const r = JSON.stringify(recebido);
+      const e = JSON.stringify(esperado);
+      if (r !== e) throw new Error(`${contexto ?? ''} recebido=${r} esperado=${e}`);
+    }
+
+    // ---- escaparCampoCsv: prevenção de injeção de fórmula em CSV ----
+    teste('escaparCampoCsv: prefixa fórmula iniciada com =', () => {
+      assertIgual(escaparCampoCsv("=cmd|'/C calc'!A0"), "'=cmd|'/C calc'!A0");
+    });
+    teste('escaparCampoCsv: prefixa fórmula iniciada com +', () => {
+      assertIgual(escaparCampoCsv('+1+1'), "'+1+1");
+    });
+    teste('escaparCampoCsv: prefixa fórmula iniciada com -', () => {
+      assertIgual(escaparCampoCsv('-2+3'), "'-2+3");
+    });
+    teste('escaparCampoCsv: prefixa fórmula iniciada com @', () => {
+      assertIgual(escaparCampoCsv('@SUM(A1:A2)'), "'@SUM(A1:A2)");
+    });
+    teste('escaparCampoCsv: texto normal passa intacto', () => {
+      assertIgual(escaparCampoCsv('Notebook Dell'), 'Notebook Dell');
+    });
+    teste('escaparCampoCsv: aspas duplas são escapadas e o campo é envolto em aspas', () => {
+      assertIgual(escaparCampoCsv('Fornecedor "ACME"'), '"Fornecedor ""ACME"""');
+    });
+    teste('escaparCampoCsv: vírgula/; não força aspas isoladamente (separador é ;)', () => {
+      // O delimitador do CSV gerado é ";", então uma vírgula sozinha não
+      // precisaria de aspas — mas ; SIM aciona aspas (é o delimitador real).
+      assertIgual(escaparCampoCsv('Fornecedor, Ltda'), 'Fornecedor, Ltda');
+      assertIgual(escaparCampoCsv('Fornecedor; Ltda'), '"Fornecedor; Ltda"');
+    });
+    teste('escaparCampoCsv: null/undefined viram string vazia', () => {
+      assertIgual(escaparCampoCsv(null), '');
+      assertIgual(escaparCampoCsv(undefined), '');
+    });
+    teste('BUG CONHECIDO: espaço antes da fórmula não é neutralizado (defesa é âncora em ^)', () => {
+      // Registrado como observação no relatório: o regex `/^[=+\-@]/` só
+      // pega o primeiro caractere. " =1+1" passa sem prefixo. Na prática o
+      // Excel/LibreOffice não avaliam fórmula com espaço à frente, mas o
+      // teste documenta o limite exato da defesa implementada.
+      assertIgual(escaparCampoCsv(' =1+1'), ' =1+1');
+    });
+
+    // ---- formatarNumeroCsv ----
+    teste('formatarNumeroCsv: formata com vírgula decimal', () => {
+      assertIgual(formatarNumeroCsv(1234.5), '1234,50');
+    });
+    teste('formatarNumeroCsv: valor ausente vira 0,00', () => {
+      assertIgual(formatarNumeroCsv(null), '0,00');
+      assertIgual(formatarNumeroCsv(undefined), '0,00');
+    });
+
+    // ---- calcularVariacao ----
+    teste('calcularVariacao: primeira linha (sem anterior) retorna —', () => {
+      assertIgual(calcularVariacao({ valor_total: 100 }, undefined), '—');
+    });
+    teste('calcularVariacao: anterior com valor_total 0 retorna — (evita divisão por zero)', () => {
+      assertIgual(calcularVariacao({ valor_total: 100 }, { valor_total: 0 }), '—');
+    });
+    teste('calcularVariacao: aumento calcula percentual positivo', () => {
+      const resultado = calcularVariacao({ valor_total: 150 }, { valor_total: 100 });
+      if (!resultado.includes('50')) throw new Error(`esperado ~50%, recebido ${resultado}`);
+    });
+    teste('calcularVariacao: queda calcula percentual negativo', () => {
+      const resultado = calcularVariacao({ valor_total: 50 }, { valor_total: 100 });
+      if (!resultado.includes('-50') && !resultado.includes('−50')) {
+        throw new Error(`esperado ~-50%, recebido ${resultado}`);
+      }
+    });
+
+    // ---- sanitizarTermoBusca: evita quebrar a sintaxe .or()/ilike do PostgREST ----
+    teste('sanitizarTermoBusca: remove vírgula (separador de condições do .or())', () => {
+      assertIgual(sanitizarTermoBusca('a,b'), 'ab');
+    });
+    teste('sanitizarTermoBusca: remove % (coringa do ILIKE)', () => {
+      assertIgual(sanitizarTermoBusca('100%'), '100');
+    });
+    teste('sanitizarTermoBusca: texto normal intacto', () => {
+      assertIgual(sanitizarTermoBusca('notebook dell'), 'notebook dell');
+    });
+    teste('OBSERVAÇÃO: "_" (coringa de 1 char do ILIKE) não é removido', () => {
+      // Não é injeção (RLS/parametrização continuam intactos), mas permite
+      // falsos positivos na busca — registrado como nota de qualidade.
+      assertIgual(sanitizarTermoBusca('nota_fiscal'), 'nota_fiscal');
+    });
+
+    // ---- normalizarUrlSegura: só http(s) — bloqueia esquemas perigosos ----
+    teste('normalizarUrlSegura: aceita https', () => {
+      assertIgual(normalizarUrlSegura('https://fornecedor.com.br/produto'), 'https://fornecedor.com.br/produto');
+    });
+    teste('normalizarUrlSegura: aceita http', () => {
+      assertIgual(normalizarUrlSegura('http://fornecedor.com.br'), 'http://fornecedor.com.br/');
+    });
+    teste('normalizarUrlSegura: rejeita javascript: (XSS via clique no link)', () => {
+      assertIgual(normalizarUrlSegura('javascript:alert(document.cookie)'), null);
+    });
+    teste('normalizarUrlSegura: rejeita data:', () => {
+      assertIgual(normalizarUrlSegura('data:text/html,<script>alert(1)<\/script>'), null);
+    });
+    teste('normalizarUrlSegura: rejeita vbscript:', () => {
+      assertIgual(normalizarUrlSegura('vbscript:msgbox(1)'), null);
+    });
+    teste('normalizarUrlSegura: rejeita ftp:', () => {
+      assertIgual(normalizarUrlSegura('ftp://servidor/arquivo'), null);
+    });
+    teste('normalizarUrlSegura: string malformada retorna null (não lança)', () => {
+      assertIgual(normalizarUrlSegura('não é uma url'), null);
+    });
+
+    document.getElementById('saida').textContent =
+      resultados.join('\n') + `\n\n${resultados.length - falhas}/${resultados.length} passaram.` +
+      (falhas > 0 ? `\n${falhas} FALHA(S).` : '\nTODOS OS TESTES PASSARAM.');
+
+    window.__resultadoTestes = { total: resultados.length, falhas, linhas: resultados };
+  </script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar conta — Controle de Compras Disktrans</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.4/dist/umd/supabase.js"
+    integrity="sha384-rqOdr5xucl4VNvjCtZO01Sdq0MqFsLBP2XT5dbe9hwm5032CwN/S+iTtUwzJe7OB"
+    crossorigin="anonymous"
+    defer></script>
+</head>
+<body class="pagina">
+  <main class="login">
+    <div class="login__cartao">
+      <h1>Criar conta</h1>
+      <p class="u-texto-secundario">Cadastro restrito a e-mails @disktrans.com.br.</p>
+
+      <p id="mensagem-status" class="alerta alerta--erro" role="alert" hidden></p>
+
+      <form id="passo-email" class="formulario" novalidate data-form="passo-email" data-passo="1">
+        <div class="formulario__campo">
+          <label for="cadastro-nome">Nome completo</label>
+          <input type="text" id="cadastro-nome" name="nome" required autocomplete="name" maxlength="150">
+        </div>
+
+        <div class="formulario__campo">
+          <label for="cadastro-email">E-mail corporativo</label>
+          <input
+            type="email"
+            id="cadastro-email"
+            name="email"
+            required
+            autocomplete="username"
+            placeholder="voce@disktrans.com.br">
+        </div>
+
+        <div class="formulario__acoes">
+          <button type="submit" class="botao">Enviar código de verificação</button>
+        </div>
+      </form>
+
+      <form id="passo-codigo" class="formulario" novalidate hidden data-form="passo-codigo" data-passo="2">
+        <p class="u-texto-secundario">Digite o código de 6 dígitos enviado para o e-mail informado.</p>
+        <div class="formulario__campo">
+          <label for="cadastro-codigo">Código de verificação</label>
+          <input
+            type="text"
+            id="cadastro-codigo"
+            name="codigo"
+            required
+            inputmode="numeric"
+            pattern="\d{6}"
+            maxlength="6"
+            autocomplete="one-time-code">
+        </div>
+
+        <div class="formulario__acoes">
+          <button type="submit" class="botao">Verificar código</button>
+        </div>
+
+        <p class="formulario__rodape">
+          <button type="button" class="botao--link" data-acao="reenviar-codigo">Reenviar código</button>
+        </p>
+      </form>
+
+      <form id="passo-senha" class="formulario" novalidate hidden data-form="passo-senha" data-passo="3">
+        <p class="u-texto-secundario">Código verificado. Agora defina sua senha de acesso.</p>
+        <div class="formulario__campo">
+          <label for="cadastro-senha">Senha</label>
+          <input type="password" id="cadastro-senha" name="senha" required minlength="8" autocomplete="new-password">
+        </div>
+
+        <div class="formulario__campo">
+          <label for="cadastro-confirmar-senha">Confirmar senha</label>
+          <input type="password" id="cadastro-confirmar-senha" name="confirmarSenha" required minlength="8" autocomplete="new-password">
+        </div>
+
+        <div class="formulario__acoes">
+          <button type="submit" class="botao">Concluir cadastro</button>
+        </div>
+      </form>
+
+      <p class="formulario__rodape u-mt-4">
+        <a href="login.html">Já tenho conta — voltar para o login</a>
+      </p>
+      <p class="formulario__rodape">
+        <a href="privacidade.html">Aviso de privacidade</a>
+      </p>
+    </div>
+  </main>
+
+  <script type="module" src="js/criar-conta.js"></script>
+</body>
+</html>
