@@ -1,126 +1,44 @@
-// Cadastro em 3 passos: e-mail/nome -> código de verificação (OTP) -> senha.
+// Cadastro em uma única etapa: nome + e-mail + senha.
 //
 // A restrição a e-mails @disktrans.com.br é validada aqui só por usabilidade
-// (evita chamar a API e gastar envio de e-mail para domínio errado) — a
-// barreira real está no banco (trigger `handle_new_user`), que rejeita a
-// criação da conta se o e-mail não for do domínio, mesmo chamando a API
-// diretamente.
+// (evita chamar a API com um domínio errado) — a barreira real está no banco
+// (trigger `handle_new_user`), que rejeita a criação da conta se o e-mail não
+// for do domínio, mesmo chamando a API diretamente.
+//
+// Este fluxo depende da opção "Confirm email" estar desabilitada em
+// Authentication > Providers > Email no painel do Supabase. Com ela
+// desabilitada, signUp() já retorna uma sessão válida imediatamente, sem
+// precisar de código ou link enviado por e-mail.
 
 import { supabaseClient } from './supabaseClient.js';
 
 const DOMINIO_PERMITIDO = /^[^\s@]+@disktrans\.com\.br$/i;
 const PAGINA_APOS_CADASTRO = 'dashboard.html';
-const MENSAGEM_ERRO_GENERICA = 'Não foi possível concluir a operação. Tente novamente.';
+const MENSAGEM_ERRO_GENERICA = 'Não foi possível concluir o cadastro. Tente novamente.';
 
-const formPassoEmail = document.querySelector('[data-form="passo-email"]');
-const formPassoCodigo = document.querySelector('[data-form="passo-codigo"]');
-const formPassoSenha = document.querySelector('[data-form="passo-senha"]');
+const formCadastro = document.querySelector('[data-form="cadastro"]');
 const mensagemStatus = document.getElementById('mensagem-status');
-
-let emailCadastro = '';
 
 inicializar();
 
-async function inicializar() {
-  formPassoEmail?.addEventListener('submit', tratarSubmitEmail);
-  formPassoCodigo?.addEventListener('submit', tratarSubmitCodigo);
-  formPassoSenha?.addEventListener('submit', tratarSubmitSenha);
-  document.querySelector('[data-acao="reenviar-codigo"]')?.addEventListener('click', reenviarCodigo);
-
-  // Se a pessoa chegou aqui clicando no link de confirmação do e-mail, o SDK
-  // já capturou a sessão a partir do hash da URL (detectSessionInUrl: true no
-  // supabaseClient). Isso significa que o e-mail já foi confirmado — não é
-  // preciso pedir e-mail/código de novo, só falta definir a senha.
-  try {
-    const { data } = await supabaseClient.auth.getSession();
-    if (data.session) {
-      exibirMensagem('E-mail confirmado. Defina sua senha para concluir o cadastro.', 'sucesso');
-      avancarPara(formPassoSenha);
-    }
-  } catch (erro) {
-    console.error('Falha ao verificar sessão existente:', erro);
-  }
+function inicializar() {
+  formCadastro?.addEventListener('submit', tratarSubmitCadastro);
 }
 
-async function tratarSubmitEmail(evento) {
+async function tratarSubmitCadastro(evento) {
   evento.preventDefault();
   ocultarMensagem();
 
-  const nome = formPassoEmail.nome.value.trim();
-  const email = formPassoEmail.email.value.trim();
-  const botaoEnviar = formPassoEmail.querySelector('button[type="submit"]');
+  const nome = formCadastro.nome.value.trim();
+  const email = formCadastro.email.value.trim();
+  const senha = formCadastro.senha.value;
+  const confirmarSenha = formCadastro.confirmarSenha.value;
+  const botaoEnviar = formCadastro.querySelector('button[type="submit"]');
 
   if (!nome || !DOMINIO_PERMITIDO.test(email)) {
     exibirMensagem('Informe seu nome e um e-mail válido @disktrans.com.br.', 'erro');
     return;
   }
-
-  try {
-    botaoEnviar.disabled = true;
-
-    const redirectTo = new URL('criar-conta.html', window.location.href).toString();
-    const { error } = await supabaseClient.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-        data: { nome },
-        emailRedirectTo: redirectTo,
-      },
-    });
-
-    if (error) throw error;
-
-    emailCadastro = email;
-    exibirMensagem(`Enviamos um código de verificação para ${email}.`, 'sucesso');
-    avancarPara(formPassoCodigo);
-  } catch (erro) {
-    console.error('Falha ao enviar código de verificação:', erro);
-    exibirMensagem(MENSAGEM_ERRO_GENERICA, 'erro');
-  } finally {
-    botaoEnviar.disabled = false;
-  }
-}
-
-async function tratarSubmitCodigo(evento) {
-  evento.preventDefault();
-  ocultarMensagem();
-
-  const codigo = formPassoCodigo.codigo.value.trim();
-  const botaoEnviar = formPassoCodigo.querySelector('button[type="submit"]');
-
-  if (!/^\d{6}$/.test(codigo)) {
-    exibirMensagem('Informe o código de 6 dígitos recebido por e-mail.', 'erro');
-    return;
-  }
-
-  try {
-    botaoEnviar.disabled = true;
-
-    const { error } = await supabaseClient.auth.verifyOtp({
-      email: emailCadastro,
-      token: codigo,
-      type: 'email',
-    });
-
-    if (error) throw error;
-
-    ocultarMensagem();
-    avancarPara(formPassoSenha);
-  } catch (erro) {
-    console.error('Falha ao verificar código:', erro);
-    exibirMensagem('Código inválido ou expirado. Verifique e tente novamente.', 'erro');
-  } finally {
-    botaoEnviar.disabled = false;
-  }
-}
-
-async function tratarSubmitSenha(evento) {
-  evento.preventDefault();
-  ocultarMensagem();
-
-  const senha = formPassoSenha.senha.value;
-  const confirmarSenha = formPassoSenha.confirmarSenha.value;
-  const botaoEnviar = formPassoSenha.querySelector('button[type="submit"]');
 
   if (senha.length < 8) {
     exibirMensagem('A senha deve ter ao menos 8 caracteres.', 'erro');
@@ -135,45 +53,34 @@ async function tratarSubmitSenha(evento) {
   try {
     botaoEnviar.disabled = true;
 
-    const { error } = await supabaseClient.auth.updateUser({ password: senha });
-    if (error) throw error;
-
-    exibirMensagem('Cadastro concluído. Redirecionando...', 'sucesso');
-    setTimeout(() => {
-      window.location.href = PAGINA_APOS_CADASTRO;
-    }, 1000);
-  } catch (erro) {
-    console.error('Falha ao definir senha:', erro);
-    exibirMensagem(MENSAGEM_ERRO_GENERICA, 'erro');
-    botaoEnviar.disabled = false;
-  }
-}
-
-async function reenviarCodigo() {
-  ocultarMensagem();
-
-  if (!emailCadastro) return;
-
-  try {
-    const redirectTo = new URL('criar-conta.html', window.location.href).toString();
-    const { error } = await supabaseClient.auth.signInWithOtp({
-      email: emailCadastro,
-      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password: senha,
+      options: { data: { nome } },
     });
 
     if (error) throw error;
-    exibirMensagem('Novo código enviado.', 'sucesso');
-  } catch (erro) {
-    console.error('Falha ao reenviar código:', erro);
-    exibirMensagem(MENSAGEM_ERRO_GENERICA, 'erro');
-  }
-}
 
-function avancarPara(form) {
-  [formPassoEmail, formPassoCodigo, formPassoSenha].forEach((f) => {
-    if (f) f.hidden = true;
-  });
-  form.hidden = false;
+    if (data.session) {
+      exibirMensagem('Cadastro concluído. Redirecionando...', 'sucesso');
+      setTimeout(() => {
+        window.location.href = PAGINA_APOS_CADASTRO;
+      }, 800);
+      return;
+    }
+
+    // Sem sessão retornada: a confirmação de e-mail ainda está habilitada no
+    // Supabase (Authentication > Providers > Email > "Confirm email").
+    exibirMensagem(
+      'Cadastro criado, mas o login automático não foi possível. Peça ao administrador para desabilitar a confirmação de e-mail nas configurações do Supabase, ou verifique seu e-mail para confirmar a conta.',
+      'erro'
+    );
+    botaoEnviar.disabled = false;
+  } catch (erro) {
+    console.error('Falha ao criar conta:', erro);
+    exibirMensagem(MENSAGEM_ERRO_GENERICA, 'erro');
+    botaoEnviar.disabled = false;
+  }
 }
 
 function exibirMensagem(texto, tipo) {
