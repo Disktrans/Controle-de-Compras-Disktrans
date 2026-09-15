@@ -33,6 +33,21 @@ const ROTULOS_STATUS = {
 
 const formatadorMoeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
+// Chart.js não lê variáveis CSS: sem isso, ticks, legendas e tooltips do
+// gráfico saem pretos por padrão, ilegíveis sobre o fundo escuro do
+// modo escuro. Lemos a cor de texto atual do tema a cada (re)renderização.
+function corTextoGrafico() {
+  return document.documentElement.classList.contains('dark-mode') ? '#FFFFFF' : '#1A1A1A';
+}
+
+function corGradeGrafico() {
+  return document.documentElement.classList.contains('dark-mode')
+    ? 'rgba(255, 255, 255, 0.12)'
+    : 'rgba(0, 0, 0, 0.08)';
+}
+
+let graficosAtivos = [];
+
 inicializar();
 
 async function inicializar() {
@@ -40,6 +55,19 @@ async function inicializar() {
   if (!contexto) return;
 
   await carregarDashboard();
+
+  // Redesenha os gráficos com as cores certas ao alternar o modo escuro,
+  // em vez de esperar um recarregamento de página. O toggle (js/dark-mode.js)
+  // aplica a classe 'dark-mode' de forma síncrona no clique, então basta
+  // recriar os gráficos logo em seguida.
+  const botaoDarkMode = document.querySelector('[data-acao="toggle-dark-mode"]');
+  botaoDarkMode?.addEventListener('click', () => setTimeout(recriarGraficos, 0));
+}
+
+function recriarGraficos() {
+  graficosAtivos.forEach((grafico) => grafico.destroy());
+  graficosAtivos = [];
+  carregarDashboard();
 }
 
 async function carregarDashboard() {
@@ -125,7 +153,7 @@ function renderizarGraficoMensal(linhasMensal) {
   const rotulos = linhasMensal.map((linha) => `${NOMES_MES[Number(linha.mes) - 1] ?? '?'}/${linha.ano}`);
   const valores = linhasMensal.map((linha) => Number(linha.valor_total ?? 0));
 
-  new window.Chart(canvas, {
+  graficosAtivos.push(new window.Chart(canvas, {
     type: 'bar',
     data: {
       labels: rotulos,
@@ -137,7 +165,7 @@ function renderizarGraficoMensal(linhasMensal) {
       }],
     },
     options: opcoesGraficoBase(),
-  });
+  }));
 }
 
 function renderizarGraficoStatus(linhasStatus) {
@@ -146,7 +174,7 @@ function renderizarGraficoStatus(linhasStatus) {
 
   const mapa = new Map(linhasStatus.map((linha) => [linha.status, linha.total_pedidos]));
 
-  new window.Chart(canvas, {
+  graficosAtivos.push(new window.Chart(canvas, {
     type: 'doughnut',
     data: {
       labels: Object.values(ROTULOS_STATUS),
@@ -158,16 +186,18 @@ function renderizarGraficoStatus(linhasStatus) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: corTextoGrafico() } },
+      },
     },
-  });
+  }));
 }
 
 function renderizarGraficoDepartamento(linhasDepartamento) {
   const canvas = document.getElementById('grafico-departamento');
   if (!canvas || typeof window.Chart === 'undefined') return;
 
-  new window.Chart(canvas, {
+  graficosAtivos.push(new window.Chart(canvas, {
     type: 'bar',
     data: {
       labels: linhasDepartamento.map((linha) => linha.departamento),
@@ -179,14 +209,14 @@ function renderizarGraficoDepartamento(linhasDepartamento) {
       }],
     },
     options: { ...opcoesGraficoBase(), indexAxis: 'y' },
-  });
+  }));
 }
 
 function renderizarGraficoFornecedores(linhasFornecedores) {
   const canvas = document.getElementById('grafico-fornecedores');
   if (!canvas || typeof window.Chart === 'undefined') return;
 
-  new window.Chart(canvas, {
+  graficosAtivos.push(new window.Chart(canvas, {
     type: 'bar',
     data: {
       labels: linhasFornecedores.map((linha) => linha.fornecedor),
@@ -198,15 +228,34 @@ function renderizarGraficoFornecedores(linhasFornecedores) {
       }],
     },
     options: { ...opcoesGraficoBase(), indexAxis: 'y' },
-  });
+  }));
 }
 
 function opcoesGraficoBase() {
+  const corTexto = corTextoGrafico();
+  const corGrade = corGradeGrafico();
+
   return {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        titleColor: '#FFFFFF',
+        bodyColor: '#FFFFFF',
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: corTexto },
+        grid: { color: corGrade },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: corTexto },
+        grid: { color: corGrade },
+      },
+    },
   };
 }
 
