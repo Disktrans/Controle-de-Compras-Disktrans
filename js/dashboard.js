@@ -187,7 +187,10 @@ function renderizarGraficoStatus(linhasStatus) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: corTextoGrafico() } },
+        legend: {
+          position: 'bottom',
+          labels: { color: corTextoGrafico(), font: { weight: '500' } },
+        },
       },
     },
   }));
@@ -247,12 +250,12 @@ function opcoesGraficoBase() {
     },
     scales: {
       x: {
-        ticks: { color: corTexto },
+        ticks: { color: corTexto, font: { weight: '500' } },
         grid: { color: corGrade },
       },
       y: {
         beginAtZero: true,
-        ticks: { color: corTexto },
+        ticks: { color: corTexto, font: { weight: '500' } },
         grid: { color: corGrade },
       },
     },
